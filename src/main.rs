@@ -1,89 +1,62 @@
 extern crate actix_web;
-extern crate diesel;
+#[macro_use] extern crate diesel;
 extern crate serde;
 #[macro_use] extern crate serde_derive;
-#[macro_use] extern crate serde_json;
+extern crate serde_json;
+#[macro_use] extern crate juniper;
 
-use actix_web::{ App, Responder, HttpRequest, Json, Path, State, };
+use diesel::prelude::*;
+use std::sync::Arc;
 
-/*
-GET /shop/
-POST /shop/
+use actix_web::{ Result, App, Json, State, Query, Responder, HttpRequest, HttpResponse, };
+use juniper::http::GraphQLRequest;
 
-GET /shop/{id}
-PUT /shop/{id}
-DELETE /shop/{id}
-*/
+mod db;
+mod schema;
 
-#[derive(Debug, Serialize, Deserialize)]
-struct Shop {
-    products: Vec<Product>,
-    orders: Vec<Order>,
+pub struct AppState {
+    db: Arc<SqliteConnection>,
+    executor: schema::Schema,
 }
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Product {
-    line_items: Vec<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Order {}
-
-struct AppState {}
 
 fn main() {
     actix_web::server::new(|| {
-            App::with_state(AppState {})
-                .resource("/", |r| r.with(index))
-                .scope("/shop/", |s| {
-                    s.resource("", |r| {
-                            r.get().f(|_| "Get");
-                            r.post().f(|_| "Post");
-                        })
-                        .resource("/{id}/", |r| {
-                            r.get().f(|_| "Get");
-                            r.put().f(|_| "Put");
-                            r.delete().f(|_| "Delete");
-                        })
+            let db = Arc::new(SqliteConnection::establish("database.db")
+                .expect("Couldn't connect to Sqlite Database."));
+
+            let executor = schema::Schema::new(schema::Query, juniper::EmptyMutation::new());
+
+            App::with_state({
+                    AppState {
+                        db: db,
+                        executor: executor,
+                    }
                 })
-                .default_resource(|r| r.f(|_| {
-                    Json(json!({
-                        "error": "Resource not found."
-                    }))
-                }))
+                .resource("/graphql", |r| {
+                    r.post().with(graphql_post);
+                })
+                .resource("/graphiql", |r| {
+                    r.get().with(graphiql);
+                })
         })
-        .bind("127.0.0.1:80")
+        .bind("localhost:8000")
         .unwrap()
         .run();
 }
 
-fn index(_: State<AppState>) -> impl Responder {
-    Json(vec![Shop {
-        products: vec![
-            Product {
-                line_items: vec![
-                    "Apple".into(),
-                ],
-            },
-        ],
-        orders: vec![
+fn graphql_post((state, req): (State<AppState>, Json<GraphQLRequest>)) -> impl Responder {
+    let req = req.into_inner();
+    let resp = req.execute(&state.executor, &schema::Context { db: state.db.clone() });
 
-        ],
-    }])
+    if resp.is_ok() {
+        HttpResponse::Ok().json(resp)
+    } else {
+        HttpResponse::BadRequest().finish()
+    }
 }
 
-fn shop_create(_: State<AppState>) -> impl Responder {
-    ""
-}
-
-fn shop_read(_: State<AppState>) -> impl Responder {
-    "BLAH"
-}
-
-fn shop_update(_: State<AppState>) -> impl Responder {
-    ""
-}
-
-fn shop_delete(_: State<AppState>) -> impl Responder {
-    ""
+fn graphiql(_: HttpRequest<AppState>) -> impl Responder {
+    HttpResponse::Ok()
+        .header("Content-Type", "text/html; charset=UTF-8")
+        .body(juniper::graphiql::graphiql_source("/graphql"))
 }
