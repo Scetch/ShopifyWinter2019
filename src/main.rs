@@ -1,14 +1,13 @@
 extern crate actix_web;
 #[macro_use] extern crate diesel;
 extern crate serde;
-#[macro_use] extern crate serde_derive;
 extern crate serde_json;
 #[macro_use] extern crate juniper;
 
 use diesel::prelude::*;
 use std::sync::Arc;
 
-use actix_web::{ Result, App, Json, State, Query, Responder, HttpRequest, HttpResponse, };
+use actix_web::{ App, Json, State, Responder, HttpRequest, HttpResponse, };
 use juniper::http::GraphQLRequest;
 
 mod db;

@@ -2,7 +2,8 @@ table! {
     line_items (id) {
         id -> Integer,
         product_id -> Integer,
-        value -> Float,
+        order_id -> Integer,
+        quantity -> Integer,
     }
 }
 
@@ -29,6 +30,7 @@ table! {
     }
 }
 
+joinable!(line_items -> orders (order_id));
 joinable!(line_items -> products (product_id));
 joinable!(orders -> shops (shop_id));
 joinable!(products -> shops (shop_id));
