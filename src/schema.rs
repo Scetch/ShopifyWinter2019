@@ -20,7 +20,7 @@ graphql_object!(Query: Context |&self| {
     description: "Query information about shops, their products, and their current orders."
 
     field shop(&executor, id: i32) -> FieldResult<Option<Shop>> as
-        "Query a specific Shop"
+        "Query a specific Shop by its id"
     {
         shops::table
             .find(id)
@@ -227,12 +227,12 @@ graphql_object!(LineItem: Context |&self| {
 
     field value(&executor) -> FieldResult<f64> as
         "The value of this line item. It is the price of the product multiplied by the quantity of the product."
-    {
+    {  
         products::table
             .find(self.product_id)
             .select(products::value)
             .first::<f32>(executor.context().db.as_ref())
-            .map(|value| (value * self.quantity as f32) as f64)
+            .map(|v| (v * self.quantity as f32) as f64)
             .map_err(Into::into)
     }
 

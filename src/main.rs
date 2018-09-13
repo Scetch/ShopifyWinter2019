@@ -1,7 +1,5 @@
 extern crate actix_web;
 #[macro_use] extern crate diesel;
-extern crate serde;
-extern crate serde_json;
 #[macro_use] extern crate juniper;
 
 use diesel::prelude::*;
