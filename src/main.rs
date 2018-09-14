@@ -1,5 +1,6 @@
 extern crate actix_web;
 #[macro_use] extern crate diesel;
+extern crate env_logger;
 #[macro_use] extern crate juniper;
 
 use diesel::prelude::*;
@@ -17,6 +18,9 @@ pub struct AppState {
 }
 
 fn main() {
+    std::env::set_var("RUST_LOG", "actix_web=info");
+    env_logger::init();
+
     actix_web::server::new(|| {
             let db = Arc::new(SqliteConnection::establish("database.db")
                 .expect("Couldn't connect to Sqlite Database."));
@@ -29,6 +33,13 @@ fn main() {
                         executor: executor,
                     }
                 })
+                .resource("/", |r| {
+                    r.f(|_| {
+                        HttpResponse::Found()
+                            .header("location", "/graphiql")
+                            .finish()
+                    })
+                })
                 .resource("/graphql", |r| {
                     r.post().with(graphql_post);
                 })
@@ -36,7 +47,7 @@ fn main() {
                     r.get().with(graphiql);
                 })
         })
-        .bind("localhost:8000")
+        .bind("0.0.0.0:8000")
         .unwrap()
         .run();
 }

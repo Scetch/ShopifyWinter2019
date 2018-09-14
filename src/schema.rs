@@ -20,7 +20,7 @@ graphql_object!(Query: Context |&self| {
     description: "Query information about shops, their products, and their current orders."
 
     field shop(&executor, id: i32) -> FieldResult<Option<Shop>> as
-        "Query a specific Shop by its id"
+        "Query a specific Shop by its unique id"
     {
         shops::table
             .find(id)
@@ -30,7 +30,7 @@ graphql_object!(Query: Context |&self| {
     }
 
     field shops(&executor) -> FieldResult<Vec<Shop>> as
-        "Retrieve all of the current Shops"
+        "Query all of the current Shops"
     {
         shops::table
             .load::<Shop>(executor.context().db.as_ref())
@@ -49,23 +49,23 @@ pub struct Shop {
     name: String,
 }
 
-graphql_object!(Shop: Context |&self| { 
-    description: "A Shop"
+graphql_object!(Shop: Context |&self| {
+    description: "Query information about a Shop"
 
     field id() -> i32 as
-        "The shop id"
+        "The Shop unique id"
     {
         self.id
     }
 
     field name() -> &str as
-        "The shop name" 
+        "The Shop name"
     {
         self.name.as_str()
     }
 
-    field products(&executor) -> FieldResult<Vec<Product>> as 
-        "Products for the shop"
+    field products(&executor) -> FieldResult<Vec<Product>> as
+        "Products in the Shop that can appear in an Order"
     {
         Product::belonging_to(self)
             .load::<Product>(executor.context().db.as_ref())
@@ -73,7 +73,7 @@ graphql_object!(Shop: Context |&self| {
     }
 
     field orders(&executor) -> FieldResult<Vec<Order>> as
-        "Orders"
+        "Orders in a Shop that contain a list of LineItems"
     {
         Order::belonging_to(self)
             .load::<Order>(executor.context().db.as_ref())
@@ -81,13 +81,13 @@ graphql_object!(Shop: Context |&self| {
     }
 });
 
-/// A `Product` is a collection of items in a `Shop` that can 
+/// A `Product` is a collection of items in a `Shop` that can
 /// be added to an order
 #[derive(Identifiable, Queryable, Associations)]
 #[belongs_to(Shop, foreign_key = "shop_id")]
 #[table_name = "products"]
 pub struct Product {
-    /// The unique ID of the `Product` 
+    /// The unique ID of the `Product`
     id: i32,
     /// The `Shop` ID the `Product` is connected to
     shop_id: i32,
@@ -98,34 +98,43 @@ pub struct Product {
 }
 
 graphql_object!(Product: Context |&self| {
-    description: "A product"
+    description: "A Product available in a Shop"
 
     field id() -> i32 as
-        "The product id"
+        "The Product unique id"
     {
         self.id
     }
 
     field shop_id() -> i32 as
-        "The shop id"
+        "The Shop unique id"
     {
         self.shop_id
     }
 
     field name() -> &str as
-        "The product name"
+        "The Product name"
     {
         self.name.as_str()
     }
 
     field value() -> f64 as
-        "The product value"
+        "The value of the Product"
     {
         self.value as f64
     }
 
+    field shop(&executor) -> FieldResult<Shop> as
+        "The Shop this Product is attached to"
+    {
+        shops::table
+            .find(self.shop_id)
+            .first::<Shop>(executor.context().db.as_ref())
+            .map_err(Into::into)
+    }
+
     field line_items(&executor) -> FieldResult<Vec<LineItem>> as
-        "The line items attached to this product"
+        "The LineItems that reference this Product"
     {
         LineItem::belonging_to(self)
             .load::<LineItem>(executor.context().db.as_ref())
@@ -145,22 +154,31 @@ pub struct Order {
 }
 
 graphql_object!(Order: Context |&self| {
-    description: "An order"
+    description: "An Order attached to a Shop"
 
     field id() -> i32 as
-        "The order id"
+        "The Order unique id"
     {
         self.id
     }
 
     field shop_id() -> i32 as
-        "The shop id"
+        "The Shop unique id"
     {
         self.shop_id
     }
 
+    field shop(&executor) -> FieldResult<Shop> as
+        "The Shop this Order is attached to"
+    {
+        shops::table
+            .find(self.shop_id)
+            .first::<Shop>(executor.context().db.as_ref())
+            .map_err(Into::into)
+    }
+
     field total(&executor) -> FieldResult<f64> as
-        "The total amount of this order"
+        "The total amount of this Order"
     {
         LineItem::belonging_to(self)
             .inner_join(products::table)
@@ -174,7 +192,7 @@ graphql_object!(Order: Context |&self| {
     }
 
     field line_items(&executor) -> FieldResult<Vec<LineItem>> as
-        "The line items attached to this order."
+        "The LineItems that reference this Order"
     {
         LineItem::belonging_to(self)
             .load::<LineItem>(executor.context().db.as_ref())
@@ -199,35 +217,35 @@ pub struct LineItem {
 }
 
 graphql_object!(LineItem: Context |&self| {
-    description: "A line item"
+    description: "A LineItem for an Order"
 
     field id() -> i32 as
-        "The line item id."
+        "The LineItem unique id."
     {
         self.id
     }
 
     field product_id() -> i32 as
-        "The product id this line item is attached to."
+        "The Product unique id this LineItem is attached to"
     {
-        self.product_id    
+        self.product_id
     }
 
     field order_id() -> i32 as
-        "The order id this line item is attached to."
+        "The Order unique id this LineItem is attached to"
     {
-        self.order_id  
+        self.order_id
     }
 
     field quantity() -> i32 as
-        "The quantity attached to the order"    
+        "The quantity of Product attached to the Order"
     {
         self.quantity
     }
 
     field value(&executor) -> FieldResult<f64> as
-        "The value of this line item. It is the price of the product multiplied by the quantity of the product."
-    {  
+        "The value of this LineItem. It is the price of the Product multiplied by the quantity of the Product."
+    {
         products::table
             .find(self.product_id)
             .select(products::value)
@@ -237,7 +255,7 @@ graphql_object!(LineItem: Context |&self| {
     }
 
     field product(&executor) -> FieldResult<Product> as
-        "The product this line item is attached to"
+        "The Product this LineItem is attached to"
     {
         products::table
             .find(self.product_id)
@@ -245,8 +263,8 @@ graphql_object!(LineItem: Context |&self| {
             .map_err(Into::into)
     }
 
-    field order(&executor) -> FieldResult<Order> as 
-        "The order this line item is attached to."
+    field order(&executor) -> FieldResult<Order> as
+        "The Order this LineItem is attached to."
     {
         orders::table
             .find(self.order_id)
