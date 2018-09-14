@@ -2,9 +2,11 @@
 
 Solution for the Winter 2019 Developer Intern Challenge Question.
 
+Currently deployed on GKE (Google Kubernetes Engine) at [http://shopifyw19.scetch.net/](http://shopifyw19.scetch.net/)
+
 The `/graphql` endpoint will accept and respond to POST requests.
 
-The interactive endpoint `/graphiql` is available and will provide documentation to the GraphQL schema.
+The interactive endpoint `/graphiql` is available and provides documentation to the GraphQL schema.
 
 ## Tools
 * [Rust](https://www.rust-lang.org) - Programming language
@@ -21,4 +23,4 @@ The interactive endpoint `/graphiql` is available and will provide documentation
 cargo run --release
 ```
 
-Alternatively you can build with Docker.
+Alternatively you can build and run with Docker.
